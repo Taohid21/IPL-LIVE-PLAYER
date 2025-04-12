@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Video Player</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css"/>
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <style>
+    .custom-controls {
+      transition: opacity 0.3s;
+    }
+    .hidden-controls {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="bg-black flex items-center justify-center min-h-screen">
+  <div class="relative w-full max-w-4xl" id="video-container">
+    <!-- Video Player -->
+    <video id="player" playsinline autoplay class="w-full h-auto">
+      <source src="https://news.bajimath.com/Candy_Live/vstream.m3u8?id=2d4852b1a355&e=.m3u8" type="application/x-mpegURL" label="1080p" />
+      <source src="https://bongoflixbd.top/crichd/stream.php?id=ptvpk&e=.m3u8" type="application/x-mpegURL" label="720p" />
+    </video>
+
+    <!-- Custom Controls -->
+    <div id="controls" class="absolute inset-0 flex flex-col justify-end z-10 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 custom-controls">
+      <div class="flex items-center justify-between text-white text-sm mb-2">
+        <span id="current-time">00:00</span>
+        <input id="seek-bar" type="range" min="0" max="100" value="0" class="flex-1 mx-4 h-1 bg-gray-600 rounded-lg cursor-pointer">
+        <span id="duration">00:00</span>
+      </div>
+      <div class="flex items-center justify-center space-x-4">
+        <i class="fas fa-backward text-white text-xl cursor-pointer" onclick="player.rewind(10)"></i>
+        <i class="fas fa-play text-white text-2xl cursor-pointer" id="play-btn"></i>
+        <i class="fas fa-forward text-white text-xl cursor-pointer" onclick="player.forward(10)"></i>
+        <i class="fas fa-expand text-white text-xl cursor-pointer" onclick="player.fullscreen.toggle()"></i>
+        <div class="relative group">
+          <i class="fas fa-cog text-white text-xl cursor-pointer"></i>
+          <div class="absolute right-0 top-8 hidden group-hover:block bg-gray-800 text-white p-2 rounded space-y-2">
+            <div class="cursor-pointer" onclick="switchQuality('1080p')">1080p</div>
+            <div class="cursor-pointer" onclick="switchQuality('720p')">720p</div>
+          </div>
+        </div>
+        <i class="fas fa-volume-up text-white text-xl cursor-pointer" id="mute-btn"></i>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const player = new Plyr('#player', {
+      controls: [],
+      autoplay: true,
+      muted: false
+    });
+
+    const playBtn = document.getElementById('play-btn');
+    const muteBtn = document.getElementById('mute-btn');
+    const controls = document.getElementById('controls');
+    const seekBar = document.getElementById('seek-bar');
+    const currentTime = document.getElementById('current-time');
+    const duration = document.getElementById('duration');
+    const videoContainer = document.getElementById('video-container');
+
+    let hideTimeout;
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function showControlsTemporarily() {
+      controls.classList.remove('hidden-controls');
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => controls.classList.add('hidden-controls'), 3000);
+    }
+
+    playBtn.addEventListener('click', () => {
+      if (player.playing) {
+        player.pause();
+        playBtn.classList.replace('fa-pause', 'fa-play');
+      } else {
+        player.play();
+        playBtn.classList.replace('fa-play', 'fa-pause');
+      }
+      showControlsTemporarily();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      player.muted = !player.muted;
+      muteBtn.classList.toggle('fa-volume-up', !player.muted);
+      muteBtn.classList.toggle('fa-volume-mute', player.muted);
+      showControlsTemporarily();
+    });
+
+    player.on('timeupdate', () => {
+      currentTime.textContent = formatTime(player.currentTime);
+      seekBar.value = (player.currentTime / player.duration) * 100;
+    });
+
+    player.on('loadedmetadata', () => {
+      duration.textContent = formatTime(player.duration);
+    });
+
+    seekBar.addEventListener('input', () => {
+      player.currentTime = (seekBar.value / 100) * player.duration;
+      showControlsTemporarily();
+    });
+
+    function switchQuality(label) {
+      const sources = player.media.querySelectorAll('source');
+      sources.forEach(source => {
+        if (source.getAttribute('label') === label) {
+          player.source = {
+            type: 'video',
+            sources: [{ src: source.src, type: source.type }],
+          };
+        }
+      });
+    }
+
+    // Show controls on interaction
+    videoContainer.addEventListener('mousemove', showControlsTemporarily);
+    videoContainer.addEventListener('click', showControlsTemporarily);
+    window.addEventListener('load', () => {
+      showControlsTemporarily();
+      // Force play (if browser allows)
+      player.play().then(() => {
+        playBtn.classList.replace('fa-play', 'fa-pause');
+      }).catch(e => {
+        console.warn("Autoplay blocked:", e);
+      });
+    });
+  </script>
+</body>
+</html>
